@@ -1,164 +1,213 @@
-# Main Menu
-Clear-Host
-Write-Host "SS:KTJL" -ForegroundColor Cyan
-Write-Host "EasyAntiCheat Management for 'Suicide Squad: Kill the Justice League'"
-Write-Host "This script helps manage EasyAntiCheat files and ensures a smooth gaming experience."
-Write-Host ""
-
-# Display menu options
-Write-Host "Select an option:"
-Write-Host "[1] Begin Script"
-Write-Host "[2] Placeholder Option"
-Write-Host ""
-
-# Read user choice
-$choice = Read-Host "Enter the number of your choice and press ENTER"
-
-Switch ($choice) {
-    "1" {
-        # Check for admin privileges and prompt for them if not present
-        $scriptPath = $MyInvocation.MyCommand.Path
-        If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-            Write-Host "Requesting administrative privileges..."
-            Start-Process PowerShell -ArgumentList "-File `"$scriptPath`"" -Verb RunAs
-            Exit
-        }
-
-        # Set the base directory to the script's location
-        Push-Location
-        Set-Location -Path (Split-Path -Path $scriptPath -Parent)
-
-        # Choose GameExePath and search for SuicideSquad_KTJL.exe
-        Write-Host "Select the base location of 'Suicide Squad Kill the Justice League':"
-        Write-Host "1. C:\Program Files (x86)\Steam\steamapps\common\Suicide Squad Kill the Justice League"
-        Write-Host "2. D:\SteamLibrary\steamapps\common\Suicide Squad Kill the Justice League"
-        Write-Host "3. Enter your own path"
-        $choice = Read-Host "Type the number of your choice and press ENTER"
-        $baseGamePath = $null
-        switch ($choice) {
-            "1" { $baseGamePath = "C:\Program Files (x86)\Steam\steamapps\common\Suicide Squad Kill the Justice League" }
-            "2" { $baseGamePath = "D:\SteamLibrary\steamapps\common\Suicide Squad Kill the Justice League" }
-            "3" { $baseGamePath = Read-Host "Please enter the base path to the 'Suicide Squad Kill the Justice League' folder" }
-        }
-
-        # Search for SuicideSquad_KTJL.exe in the baseGamePath and its subdirectories
-        $GameExePath = Get-ChildItem -Path $baseGamePath -Recurse -Filter "SuicideSquad_KTJL.exe" | Select-Object -First 1 -ExpandProperty FullName
-
-        # Validate GameExePath
-        If (!$GameExePath) {
-            Write-Host "The file 'SuicideSquad_KTJL.exe' could not be found. Please run the script again and enter a valid path."
-            Exit
-        }
-
-        # Choose TempFolder
-        Write-Host "Select the temporary folder for storing EasyAntiCheat files:"
-        Write-Host "1. C:\Users\$env:USERNAME\Documents\Aurora\tmpEAC"
-        Write-Host "2. Enter your own path"
-        $choice = Read-Host "Type the number of your choice and press ENTER"
-        switch ($choice) {
-            "1" {
-                $TempFolder = "C:\Users\$env:USERNAME\Documents\Aurora\tmpEAC"
-                If (!(Test-Path $TempFolder)) {
-                    New-Item -ItemType Directory -Path $TempFolder
-                }
-            }
-            "2" {
-                $TempFolder = Read-Host "Please enter the full path for the temporary folder"
-            }
-        }
-
-        # Check if the game is running
-        If (Get-Process "SuicideSquad_KTJL" -ErrorAction SilentlyContinue) {
-            Write-Host "The game is currently running. Please close the game before proceeding."
-            Pause
-            Exit
-        }
-
-        # Move EasyAntiCheat files
-        $eacFolderPath = "$env:appdata\EasyAntiCheat"
-        $eacSysPath = "C:\Program Files (x86)\EasyAntiCheat_EOS\EasyAntiCheat_EOS.sys"
-        $eacBackupPath = "$TempFolder\EasyAntiCheat_Backup"
-        $eacSysBackupPath = "$TempFolder\EasyAntiCheat_EOS.sys"
-
-        Write-Host "Checking and moving EasyAntiCheat files to temporary location..."
-
-        If (Test-Path $eacFolderPath) {
-            Move-Item $eacFolderPath $eacBackupPath
-            Write-Host "Moved EasyAntiCheat folder to temporary location."
-        } else {
-            Write-Host "EasyAntiCheat folder not found, skipping..."
-        }
-
-        If (Test-Path $eacSysPath) {
-            Move-Item $eacSysPath $eacSysBackupPath
-            Write-Host "Moved EasyAntiCheat_EOS.sys to temporary location."
-        } else {
-            Write-Host "EasyAntiCheat_EOS.sys file not found, skipping..."
-        }
-
-        # Request to press SPACE before disabling internet
-        Write-Host "Press SPACE to temporarily disable all internet connections and continue..."
-        do {
-            $key = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-        } until ($key.VirtualKeyCode -eq 32)
-
-        # Temporarily disable all internet connections (Ethernet and WiFi)
-        Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Disable-NetAdapter -Confirm:$false
-
-        # Start the game using steam protocol
-        Write-Host "Starting the game..."
-        Start-Process "steam://rungameid/315210"
-
-        # Wait for 60 seconds
-        Write-Host "Waiting for 60 seconds..."
-        Start-Sleep -Seconds 60
-
-        # Check every 10 seconds if 'start_protected_game.exe' is still running
-        Do {
-            $process = Get-Process "start_protected_game" -ErrorAction SilentlyContinue
-            If ($process) {
-                Write-Host "'start_protected_game.exe' is still running, waiting for another 10 seconds..."
-                Start-Sleep -Seconds 10
-            }
-        } While ($process)
-
-        # Enable all previously disabled internet connections
-        Get-NetAdapter | Where-Object { $_.Status -eq "Disabled" } | Enable-NetAdapter -Confirm:$false
-
-        # Move EasyAntiCheat files back
-        Write-Host "Moving EasyAntiCheat files back to original location..."
-
-        # Clear the EasyAntiCheat folder if it has contents, then move the backup files back
-        If (Test-Path $eacFolderPath) {
-            Remove-Item -Path "$eacFolderPath\*" -Recurse -Force
-        }
-        If (Test-Path $eacBackupPath) {
-            Move-Item $eacBackupPath $eacFolderPath
-            Write-Host "Moved EasyAntiCheat files back to original location."
-        } else {
-            Write-Host "EasyAntiCheat backup folder not found, skipping..."
-        }
-
-        # Overwrite the EasyAntiCheat_EOS.sys file if it exists, then move the backup file back
-        If (Test-Path $eacSysPath) {
-            Remove-Item -Path $eacSysPath -Force
-        }
-        If (Test-Path $eacSysBackupPath) {
-            Move-Item $eacSysBackupPath $eacSysPath
-            Write-Host "Moved EasyAntiCheat_EOS.sys file back to original location."
-        } else {
-            Write-Host "EasyAntiCheat_EOS.sys backup file not found, skipping..."
-        }
-
-        Write-Host "Done! EasyAntiCheat has been restored."
-        Pause
-        Pop-Location
-    }
-    "2" {
-        Write-Host "Placeholder option selected. Feature coming soon..."
-    }
-    Default {
-        Write-Host "Invalid option selected. Exiting..."
-        Exit
+function Center-Text($text) {
+    $consoleWidth = $host.UI.RawUI.WindowSize.Width
+    $lines = $text -split "`n"
+    foreach ($line in $lines) {
+        $padding = ($consoleWidth - $line.Length) / 2
+        $centeredLine = " " * [Math]::Floor($padding) + $line
+        Write-Host $centeredLine -ForegroundColor White
     }
 }
+
+$Title001 = "                          SS:KTJL EAC Manager (by engels74)"
+$Title002 = "                    https://github.com/engels74/ssktjl-eac-script"
+$Description001 = @"
+    EasyAntiCheat Management for 'Suicide Squad: Kill the Justice League'.
+    This script helps remove EasyAntiCheat before running SS:KTJL.
+    It makes it easier to use trainers for the game (e.g., the CheatHappens trainer).
+"@
+
+$Description002 = @"
+    When selecting Option 1, the script will:
+    - Launch a PowerShell in Administrator mode (it's needed to move EAC files)
+    - Remove/move EAC files temporarily
+    - Disable internet (when prompted with SPACE)
+    - Launch SS:KTJL
+    - Re-enable internet, as soon as SS:KTJL is detected
+    - Reinstate EAC for the next launch
+"@
+
+# Main Menu
+do {
+    Clear-Host
+    Write-Host $Title001 -ForegroundColor Green
+    Write-Host $Title002 -ForegroundColor White
+    Write-Host ""
+    Write-Host $Description001 -ForegroundColor White
+    Write-Host ""
+    Write-Host ""
+    Write-Host $Description002 -ForegroundColor White
+    Write-Host ""
+    Write-Host ""
+    
+    # Display menu options
+    Write-Host "    Select an option:" -ForegroundColor White
+    Write-Host "    [1] Run Script" -ForegroundColor White
+    Write-Host ""
+
+    # Read user choice
+    $choice = Read-Host "Enter the number of your choice and press ENTER"
+
+    # Check if the choice is valid
+    if ($choice -eq '1') {
+        Write-Host "    Option 1 selected. Script will proceed..." -ForegroundColor White
+        break # Exit the loop after successful choice
+    } else {
+        Write-Host "    Invalid option, please try again." -ForegroundColor White
+    }
+} while ($true)
+
+# Check for admin privileges and prompt for them if not present
+$scriptPath = $MyInvocation.MyCommand.Path
+If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Host "    Requesting administrative privileges..." -ForegroundColor Yellow
+    Start-Process PowerShell -ArgumentList "-File `"$scriptPath`"" -Verb RunAs
+    Exit
+}
+
+# Set the base directory to the script's location
+Push-Location
+Set-Location -Path (Split-Path -Path $scriptPath -Parent)
+
+# Choose the base location of 'Suicide Squad Kill the Justice League'
+do {
+    Write-Host "    Select the base location of 'Suicide Squad Kill the Justice League':" -ForegroundColor White
+    Write-Host "    1. C:\Program Files (x86)\Steam\steamapps\common\Suicide Squad Kill the Justice League" -ForegroundColor Yellow
+    Write-Host "    2. D:\SteamLibrary\steamapps\common\Suicide Squad Kill the Justice League" -ForegroundColor Yellow
+    Write-Host "    3. Enter your own path" -ForegroundColor Green
+    $choice = Read-Host "Type the number of your choice and press ENTER"
+    
+    switch ($choice) {
+        "1" {
+            $baseGamePath = "C:\Program Files (x86)\Steam\steamapps\common\Suicide Squad Kill the Justice League"
+            break
+        }
+        "2" {
+            $baseGamePath = "D:\SteamLibrary\steamapps\common\Suicide Squad Kill the Justice League"
+            break
+        }
+        "3" {
+            $baseGamePath = Read-Host "Enter the path to your game installation"
+            break
+        }
+        default {
+            Write-Host "Invalid option, please try again." -ForegroundColor White
+        }
+    }
+} while (!$baseGamePath)
+
+# Search for SuicideSquad_KTJL.exe in the baseGamePath and its subdirectories
+$GameExePath = Get-ChildItem -Path $baseGamePath -Recurse -Filter "SuicideSquad_KTJL.exe" | Select-Object -First 1 -ExpandProperty FullName
+
+# Validate GameExePath
+If (!$GameExePath) {
+    Write-Host "The file 'SuicideSquad_KTJL.exe' could not be found. Please run the script again and enter a valid path." -ForegroundColor Red
+    Exit
+}
+
+# Choose the temporary folder for storing EasyAntiCheat files
+do {
+    Write-Host "    Select the temporary folder for storing EasyAntiCheat files:" -ForegroundColor White
+    Write-Host "    1. C:\Users\$env:USERNAME\Documents\Aurora\tmpEAC" -ForegroundColor Yellow
+    Write-Host "    2. Enter your own path" -ForegroundColor Green
+    $choice = Read-Host "   Type the number of your choice and press ENTER"
+    
+    switch ($choice) {
+        "1" {
+            $TempFolder = "C:\Users\$env:USERNAME\Documents\Aurora\tmpEAC"
+            break
+        }
+        "2" {
+            $TempFolder = Read-Host "Enter your own path for the temporary folder"
+            break
+        }
+        default {
+            Write-Host "Invalid option, please try again." -ForegroundColor Red
+        }
+    }
+} while (!$TempFolder)
+
+# Ensure the temporary directory exists
+If (-not (Test-Path $TempFolder)) {
+    New-Item -ItemType Directory -Path $TempFolder
+}
+
+# Check if the game is running
+If (Get-Process "SuicideSquad_KTJL" -ErrorAction SilentlyContinue) {
+    Write-Host "The game is currently running. Please close the game before proceeding." -ForegroundColor Red
+    Pause
+    Exit
+}
+
+# Remove contents of the EasyAntiCheat folder in %appdata%
+$eacFolderPath = "$env:appdata\EasyAntiCheat"
+Write-Host "    Removing contents of the EasyAntiCheat folder..." -ForegroundColor White
+If (Test-Path $eacFolderPath) {
+    Get-ChildItem -Path $eacFolderPath -Recurse | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# Move EasyAntiCheat_EOS.sys file to temporary location
+$eacSysPath = "C:\Program Files (x86)\EasyAntiCheat_EOS\EasyAntiCheat_EOS.sys"
+$eacSysBackupPath = "$TempFolder\EasyAntiCheat_EOS.sys"
+Write-Host "    Checking and moving EasyAntiCheat_EOS.sys to temporary location..." -ForegroundColor White
+If (Test-Path $eacSysPath) {
+    Move-Item $eacSysPath $eacSysBackupPath -Force
+    Write-Host "    Moved EasyAntiCheat_EOS.sys to temporary location." -ForegroundColor White
+} else {
+    Write-Host "    EasyAntiCheat_EOS.sys file not found, skipping..." -ForegroundColor Red
+}
+
+# Request to press SPACE before disabling internet
+Write-Host "    Press SPACE to temporarily disable all internet connections and continue..." -ForegroundColor Yellow
+do {
+    $key = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+} until ($key.VirtualKeyCode -eq 32)
+
+# Temporarily disable all internet connections (Ethernet and WiFi)
+Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Disable-NetAdapter -Confirm:$false
+
+# Wait for 3 seconds before launching the game
+Write-Host "    Pausing the script for a moment..." -ForegroundColor White
+Start-Sleep -Seconds 3
+
+# Start the game using steam protocol
+Write-Host "    Starting the game..." -ForegroundColor White
+Start-Process "steam://rungameid/315210"
+
+# Initialize a loop to check for 'SuicideSquad_KTJL.exe'
+Write-Host "    Checking for Suicide Squad to start..." -ForegroundColor White
+$processFound = $false
+while (-not $processFound) {
+    # Check if 'SuicideSquad_KTJL.exe' is running
+    $processFound = Get-Process SuicideSquad_KTJL -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1  # Check every second
+}
+
+# Once the process is found, wait for 1 more second
+Write-Host "    Pausing the script for a moment..." -ForegroundColor White
+Start-Sleep -Seconds 1
+
+# Enable all previously disabled internet connections
+Write-Host "    Enabling the internet again..." -ForegroundColor Green
+Get-NetAdapter | Where-Object { $_.Status -eq "Disabled" } | Enable-NetAdapter -Confirm:$false
+
+# Move EasyAntiCheat_EOS.sys file back to original location
+Write-Host "    Moving EasyAntiCheat_EOS.sys file back to original location..." -ForegroundColor White
+If (Test-Path $eacSysBackupPath) {
+    Move-Item $eacSysBackupPath $eacSysPath -Force
+    Write-Host "    Moved EasyAntiCheat_EOS.sys file back to original location." -ForegroundColor White
+} else {
+    Write-Host "    EasyAntiCheat_EOS.sys backup file not found, skipping..." -ForegroundColor White
+}
+
+Write-Host "    Done! EasyAntiCheat has been reinstated." -ForegroundColor Green
+
+# Countdown before closing
+$seconds = 30
+while ($seconds -gt 0) {
+    Write-Host "    The script will close in $seconds seconds..." -ForegroundColor White
+    Start-Sleep -Seconds 1
+    $seconds--
+}
+
+# Exit the PowerShell session
+exit
