@@ -1,3 +1,4 @@
+# Center text function
 function Center-Text($text) {
     $consoleWidth = $host.UI.RawUI.WindowSize.Width
     $lines = $text -split "`n"
@@ -8,8 +9,11 @@ function Center-Text($text) {
     }
 }
 
+# Title text
 $Title001 = "                          SS:KTJL EAC Manager (by engels74)"
 $Title002 = "                    https://github.com/engels74/ssktjl-eac-script"
+
+# Description text
 $Description001 = @"
     EasyAntiCheat Management for 'Suicide Squad: Kill the Justice League'.
     This script helps remove EasyAntiCheat before running SS:KTJL.
