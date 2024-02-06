@@ -72,42 +72,6 @@ If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 Push-Location
 Set-Location -Path (Split-Path -Path $scriptPath -Parent)
 
-# Choose the base location of 'Suicide Squad Kill the Justice League'
-do {
-    Write-Host "    Select the base location of 'Suicide Squad Kill the Justice League':" -ForegroundColor White
-    Write-Host "    1. C:\Program Files (x86)\Steam\steamapps\common\Suicide Squad Kill the Justice League" -ForegroundColor Yellow
-    Write-Host "    2. D:\SteamLibrary\steamapps\common\Suicide Squad Kill the Justice League" -ForegroundColor Yellow
-    Write-Host "    3. Enter your own path" -ForegroundColor Green
-    $choice = Read-Host "Type the number of your choice and press ENTER"
-    
-    switch ($choice) {
-        "1" {
-            $baseGamePath = "C:\Program Files (x86)\Steam\steamapps\common\Suicide Squad Kill the Justice League"
-            break
-        }
-        "2" {
-            $baseGamePath = "D:\SteamLibrary\steamapps\common\Suicide Squad Kill the Justice League"
-            break
-        }
-        "3" {
-            $baseGamePath = Read-Host "Enter the path to your game installation"
-            break
-        }
-        default {
-            Write-Host "Invalid option, please try again." -ForegroundColor White
-        }
-    }
-} while (!$baseGamePath)
-
-# Search for SuicideSquad_KTJL.exe in the baseGamePath and its subdirectories
-$GameExePath = Get-ChildItem -Path $baseGamePath -Recurse -Filter "SuicideSquad_KTJL.exe" | Select-Object -First 1 -ExpandProperty FullName
-
-# Validate GameExePath
-If (!$GameExePath) {
-    Write-Host "The file 'SuicideSquad_KTJL.exe' could not be found. Please run the script again and enter a valid path." -ForegroundColor Red
-    Exit
-}
-
 # Choose the temporary folder for storing EasyAntiCheat files
 do {
     Write-Host "    Select the temporary folder for storing EasyAntiCheat files:" -ForegroundColor White
