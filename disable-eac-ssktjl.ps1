@@ -34,8 +34,12 @@ if (-not $IsAdmin) {
     Write-Host $Title002 -ForegroundColor Cyan
     Write-Host "" # Empty line for better readability
 
-    # User Prompt
-    $UserChoice = Read-Host "       This script requires administrative privileges to function properly. `n    Press Y to attempt to restart it with elevated privileges, or press any other key to exit"
+    # User Prompt in White
+    Write-Host "       This script requires administrative privileges to function properly." -ForegroundColor White
+    Write-Host "       Press Y to attempt to restart it with elevated privileges, or press any other key to exit." -ForegroundColor White
+    
+    # New Line for User Input
+    $UserChoice = Read-Host "`nPress Y to continue"
     if ($UserChoice -ne 'Y') {
         Write-Host "Exiting script..." -ForegroundColor Yellow
         exit
@@ -51,11 +55,10 @@ if (-not $IsAdmin) {
         Write-Host "`nTo run the script with administrative privileges manually, follow these steps:" -ForegroundColor Yellow
         Write-Host "1. Open Start, search for PowerShell, right-click it, and select 'Run as Administrator'." -ForegroundColor Green
         Write-Host "2. The command has been copied to your clipboard. Right-click and select 'Paste' in the PowerShell window to run it." -ForegroundColor Green
-        Write-Host "If copying did not work, type the following command and press Enter:" -ForegroundColor Green
+        Write-Host "3. If copying did not work, write down the following command:" -ForegroundColor Green
         Write-Host "`n    $commandToRun" -ForegroundColor White
         $commandToRun | Set-Clipboard # Copy command to clipboard
-        Write-Host "`nThe command to run this script with administrative privileges has been copied to your clipboard." -ForegroundColor Yellow
-        Write-Host "Please open a new PowerShell window as an Administrator, right-click to paste the command, and press Enter to run it." -ForegroundColor Green
+        Write-Host "`nPlease open a new PowerShell window as an Administrator, and run the command." -ForegroundColor White
         
         # Wait for user to acknowledge the message
         Write-Host "`nPress any key to exit..." -ForegroundColor White
