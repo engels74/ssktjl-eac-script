@@ -1,13 +1,5 @@
-# Center text function
-function Center-Text($text) {
-    $consoleWidth = $host.UI.RawUI.WindowSize.Width
-    $lines = $text -split "`n"
-    foreach ($line in $lines) {
-        $padding = ($consoleWidth - $line.Length) / 2
-        $centeredLine = " " * [Math]::Floor($padding) + $line
-        Write-Host $centeredLine -ForegroundColor White
-    }
-}
+# Ensure the script knows its own path for restarting with elevated privileges
+$scriptPath = $MyInvocation.MyCommand.Definition
 
 # Title text
 $Title001 = "                          SS:KTJL EAC Manager (by engels74)"
@@ -18,6 +10,9 @@ $Description001 = @"
     EasyAntiCheat Management for 'Suicide Squad: Kill the Justice League'.
     This script helps remove EasyAntiCheat before running SS:KTJL.
     It makes it easier to use trainers for the game (e.g., the CheatHappens trainer).
+
+    If SS:KTJL tells you it needs to use Steam in Online Mode, you need
+    to open the game first normally, close it, and then re-open this script.
 "@
 
 $Description002 = @"
@@ -29,6 +24,46 @@ $Description002 = @"
     - Re-enable internet, as soon as SS:KTJL is detected
     - Reinstate EAC for the next launch
 "@
+
+# Check if running as Administrator
+$IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")
+
+if (-not $IsAdmin) {
+    # Display Titles
+    Write-Host $Title001 -ForegroundColor Cyan
+    Write-Host $Title002 -ForegroundColor Cyan
+    Write-Host "" # Empty line for better readability
+
+    # User Prompt
+    $UserChoice = Read-Host "       This script requires administrative privileges to function properly. `n    Press Y to attempt to restart it with elevated privileges, or press any other key to exit."
+    if ($UserChoice -ne 'Y') {
+        Write-Host "Exiting script. Please restart the script with administrative privileges manually." -ForegroundColor Yellow
+        # Wait for user to acknowledge before exiting
+        Write-Host "Press any key to continue..."
+        $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+        exit
+    }
+
+    # Try to elevate privileges and immediately exit the current, non-elevated script instance
+    try {
+        Start-Process PowerShell -ArgumentList "-File `"$scriptPath`"" -Verb RunAs
+        exit # Ensure to exit after launching the elevated instance
+    } catch {
+        Write-Host "`nFailed to elevate privileges automatically." -ForegroundColor Red
+        Write-Host "To run the script with administrative privileges manually, follow these steps:" -ForegroundColor Yellow
+        Write-Host "1. Open Start, search for PowerShell, right-click it, and select 'Run as Administrator'." -ForegroundColor Green
+        Write-Host "2. Type the following command and press Enter:" -ForegroundColor Green
+        Write-Host "`n    PowerShell -File '$scriptPath'" -ForegroundColor White
+        Write-Host "`nMake sure to replace '$scriptPath' with the actual path of this script if it's not correctly shown." -ForegroundColor Yellow
+        
+        # Wait for user to acknowledge before exiting
+        Write-Host "`nPress any key to exit..." -ForegroundColor White
+        $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+        exit
+    }
+} else {
+    Write-Host "Running with administrative privileges."
+}
 
 # Main Menu
 do {
@@ -67,10 +102,6 @@ If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     Start-Process PowerShell -ArgumentList "-File `"$scriptPath`"" -Verb RunAs
     Exit
 }
-
-# Set the base directory to the script's location
-Push-Location
-Set-Location -Path (Split-Path -Path $scriptPath -Parent)
 
 # Choose the temporary folder for storing EasyAntiCheat files
 do {
@@ -119,7 +150,7 @@ $eacSysBackupPath = "$TempFolder\EasyAntiCheat_EOS.sys"
 Write-Host "    Checking and moving EasyAntiCheat_EOS.sys to temporary location..." -ForegroundColor White
 If (Test-Path $eacSysPath) {
     Move-Item $eacSysPath $eacSysBackupPath -Force
-    Write-Host "    Moved EasyAntiCheat_EOS.sys to temporary location." -ForegroundColor White
+    Write-Host "    Moved EasyAntiCheat_EOS.sys to temporary location." -ForegroundColor Green
 } else {
     Write-Host "    EasyAntiCheat_EOS.sys file not found, skipping..." -ForegroundColor Red
 }
@@ -130,8 +161,13 @@ do {
     $key = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 } until ($key.VirtualKeyCode -eq 32)
 
-# Temporarily disable all internet connections (Ethernet and WiFi)
-Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Disable-NetAdapter -Confirm:$false
+# Disabling network adapters
+try {
+    Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Disable-NetAdapter -Confirm:$false -ErrorAction Stop
+    Write-Host "    Network adapters disabled successfully." -ForegroundColor Green
+} catch {
+    Write-Host "    Error disabling network adapters: $_" -ForegroundColor Red
+}
 
 # Wait for 3 seconds before launching the game
 Write-Host "    Pausing the script for a moment..." -ForegroundColor White
@@ -154,17 +190,24 @@ while (-not $processFound) {
 Write-Host "    Pausing the script for a moment..." -ForegroundColor White
 Start-Sleep -Seconds 1
 
-# Enable all previously disabled internet connections
-Write-Host "    Enabling the internet again..." -ForegroundColor Green
-Get-NetAdapter | Where-Object { $_.Status -eq "Disabled" } | Enable-NetAdapter -Confirm:$false
+# Enabling network adapters
+try {
+    Get-NetAdapter | Where-Object { $_.Status -eq "Disabled" } | Enable-NetAdapter -Confirm:$false -ErrorAction Stop
+    Write-Host "    Network adapters enabled successfully." -ForegroundColor Green
+} catch {
+    Write-Host "    Error enabling network adapters: $_" -ForegroundColor Red
+}
 
 # Move EasyAntiCheat_EOS.sys file back to original location
-Write-Host "    Moving EasyAntiCheat_EOS.sys file back to original location..." -ForegroundColor White
-If (Test-Path $eacSysBackupPath) {
-    Move-Item $eacSysBackupPath $eacSysPath -Force
-    Write-Host "    Moved EasyAntiCheat_EOS.sys file back to original location." -ForegroundColor White
-} else {
-    Write-Host "    EasyAntiCheat_EOS.sys backup file not found, skipping..." -ForegroundColor White
+try {
+    If (Test-Path $eacSysBackupPath) {
+        Move-Item $eacSysBackupPath $eacSysPath -Force -ErrorAction Stop
+        Write-Host "    EasyAntiCheat_EOS.sys file moved back to original location successfully." -ForegroundColor Green
+    } else {
+        Write-Host "    EasyAntiCheat_EOS.sys backup file not found, skipping move operation." -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "    Error moving EasyAntiCheat_EOS.sys file: $_" -ForegroundColor Red
 }
 
 Write-Host "    Done! EasyAntiCheat has been reinstated." -ForegroundColor Green
