@@ -35,12 +35,9 @@ if (-not $IsAdmin) {
     Write-Host "" # Empty line for better readability
 
     # User Prompt
-    $UserChoice = Read-Host "       This script requires administrative privileges to function properly. `n    Press Y to attempt to restart it with elevated privileges, or press any other key to exit."
+    $UserChoice = Read-Host "       This script requires administrative privileges to function properly. `n    Press Y to attempt to restart it with elevated privileges, or press any other key to exit"
     if ($UserChoice -ne 'Y') {
-        Write-Host "Exiting script. Please restart the script with administrative privileges manually." -ForegroundColor Yellow
-        # Wait for user to acknowledge before exiting
-        Write-Host "Press any key to continue..."
-        $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+        Write-Host "Exiting script..." -ForegroundColor Yellow
         exit
     }
 
@@ -49,14 +46,18 @@ if (-not $IsAdmin) {
         Start-Process PowerShell -ArgumentList "-File `"$scriptPath`"" -Verb RunAs
         exit # Ensure to exit after launching the elevated instance
     } catch {
+        $commandToRun = "PowerShell -File '$scriptPath'"
         Write-Host "`nFailed to elevate privileges automatically." -ForegroundColor Red
-        Write-Host "To run the script with administrative privileges manually, follow these steps:" -ForegroundColor Yellow
+        Write-Host "`nTo run the script with administrative privileges manually, follow these steps:" -ForegroundColor Yellow
         Write-Host "1. Open Start, search for PowerShell, right-click it, and select 'Run as Administrator'." -ForegroundColor Green
-        Write-Host "2. Type the following command and press Enter:" -ForegroundColor Green
-        Write-Host "`n    PowerShell -File '$scriptPath'" -ForegroundColor White
-        Write-Host "`nMake sure to replace '$scriptPath' with the actual path of this script if it's not correctly shown." -ForegroundColor Yellow
+        Write-Host "2. The command has been copied to your clipboard. Right-click and select 'Paste' in the PowerShell window to run it." -ForegroundColor Green
+        Write-Host "If copying did not work, type the following command and press Enter:" -ForegroundColor Green
+        Write-Host "`n    $commandToRun" -ForegroundColor White
+        $commandToRun | Set-Clipboard # Copy command to clipboard
+        Write-Host "`nThe command to run this script with administrative privileges has been copied to your clipboard." -ForegroundColor Yellow
+        Write-Host "Please open a new PowerShell window as an Administrator, right-click to paste the command, and press Enter to run it." -ForegroundColor Green
         
-        # Wait for user to acknowledge before exiting
+        # Wait for user to acknowledge the message
         Write-Host "`nPress any key to exit..." -ForegroundColor White
         $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
         exit
@@ -132,14 +133,14 @@ If (-not (Test-Path $TempFolder)) {
 
 # Check if the game is running
 If (Get-Process "SuicideSquad_KTJL" -ErrorAction SilentlyContinue) {
-    Write-Host "The game is currently running. Please close the game before proceeding." -ForegroundColor Red
+    Write-Host "`nThe game is currently running. Please close the game before proceeding." -ForegroundColor Red
     Pause
     Exit
 }
 
 # Remove contents of the EasyAntiCheat folder in %appdata%
 $eacFolderPath = "$env:appdata\EasyAntiCheat"
-Write-Host "    Removing contents of the EasyAntiCheat folder..." -ForegroundColor White
+Write-Host "`n    Removing contents of the EasyAntiCheat folder..." -ForegroundColor White
 If (Test-Path $eacFolderPath) {
     Get-ChildItem -Path $eacFolderPath -Recurse | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 }
@@ -147,7 +148,7 @@ If (Test-Path $eacFolderPath) {
 # Move EasyAntiCheat_EOS.sys file to temporary location
 $eacSysPath = "C:\Program Files (x86)\EasyAntiCheat_EOS\EasyAntiCheat_EOS.sys"
 $eacSysBackupPath = "$TempFolder\EasyAntiCheat_EOS.sys"
-Write-Host "    Checking and moving EasyAntiCheat_EOS.sys to temporary location..." -ForegroundColor White
+Write-Host "`n    Checking and moving EasyAntiCheat_EOS.sys to temporary location..." -ForegroundColor White
 If (Test-Path $eacSysPath) {
     Move-Item $eacSysPath $eacSysBackupPath -Force
     Write-Host "    Moved EasyAntiCheat_EOS.sys to temporary location." -ForegroundColor Green
@@ -156,7 +157,7 @@ If (Test-Path $eacSysPath) {
 }
 
 # Request to press SPACE before disabling internet
-Write-Host "    Press SPACE to temporarily disable all internet connections and continue..." -ForegroundColor Yellow
+Write-Host "`n    Press SPACE to temporarily disable all internet connections and continue..." -ForegroundColor Yellow
 do {
     $key = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 } until ($key.VirtualKeyCode -eq 32)
@@ -164,21 +165,21 @@ do {
 # Disabling network adapters
 try {
     Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Disable-NetAdapter -Confirm:$false -ErrorAction Stop
-    Write-Host "    Network adapters disabled successfully." -ForegroundColor Green
+    Write-Host "`n    Network adapters disabled successfully." -ForegroundColor Green
 } catch {
-    Write-Host "    Error disabling network adapters: $_" -ForegroundColor Red
+    Write-Host "`n    Error disabling network adapters: $_" -ForegroundColor Red
 }
 
 # Wait for 3 seconds before launching the game
-Write-Host "    Pausing the script for a moment..." -ForegroundColor White
+Write-Host "`n    Pausing the script for a moment..." -ForegroundColor White
 Start-Sleep -Seconds 3
 
 # Start the game using steam protocol
-Write-Host "    Starting the game..." -ForegroundColor White
+Write-Host "`n    Starting the game..." -ForegroundColor White
 Start-Process "steam://rungameid/315210"
 
 # Initialize a loop to check for 'SuicideSquad_KTJL.exe'
-Write-Host "    Checking for Suicide Squad to start..." -ForegroundColor White
+Write-Host "`n    Checking for Suicide Squad to start..." -ForegroundColor White
 $processFound = $false
 while (-not $processFound) {
     # Check if 'SuicideSquad_KTJL.exe' is running
@@ -187,30 +188,30 @@ while (-not $processFound) {
 }
 
 # Once the process is found, wait for 1 more second
-Write-Host "    Pausing the script for a moment..." -ForegroundColor White
+Write-Host "`n    Pausing the script for a moment..." -ForegroundColor White
 Start-Sleep -Seconds 1
 
 # Enabling network adapters
 try {
     Get-NetAdapter | Where-Object { $_.Status -eq "Disabled" } | Enable-NetAdapter -Confirm:$false -ErrorAction Stop
-    Write-Host "    Network adapters enabled successfully." -ForegroundColor Green
+    Write-Host "`n    Network adapters enabled successfully." -ForegroundColor Green
 } catch {
-    Write-Host "    Error enabling network adapters: $_" -ForegroundColor Red
+    Write-Host "`n    Error enabling network adapters: $_" -ForegroundColor Red
 }
 
 # Move EasyAntiCheat_EOS.sys file back to original location
 try {
     If (Test-Path $eacSysBackupPath) {
         Move-Item $eacSysBackupPath $eacSysPath -Force -ErrorAction Stop
-        Write-Host "    EasyAntiCheat_EOS.sys file moved back to original location successfully." -ForegroundColor Green
+        Write-Host "`n    EasyAntiCheat_EOS.sys file moved back to original location successfully." -ForegroundColor Green
     } else {
-        Write-Host "    EasyAntiCheat_EOS.sys backup file not found, skipping move operation." -ForegroundColor Yellow
+        Write-Host "`n    EasyAntiCheat_EOS.sys backup file not found, skipping move operation." -ForegroundColor Yellow
     }
 } catch {
-    Write-Host "    Error moving EasyAntiCheat_EOS.sys file: $_" -ForegroundColor Red
+    Write-Host "`n    Error moving EasyAntiCheat_EOS.sys file: $_" -ForegroundColor Red
 }
 
-Write-Host "    Done! EasyAntiCheat has been reinstated." -ForegroundColor Green
+Write-Host "`n    Done! EasyAntiCheat has been reinstated." -ForegroundColor Green
 
 # Countdown before closing
 $seconds = 30
